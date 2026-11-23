@@ -117,6 +117,14 @@ footer{padding:8px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));bac
 .btn-enviar:not(:disabled){animation:listo .25s ease-out}
 .btn-enviar:disabled{background:var(--grad);opacity:.4;box-shadow:none;cursor:default}
 @keyframes listo{0%{transform:scale(.88)}70%{transform:scale(1.06)}100%{transform:scale(1)}}
+.btn-mic{width:46px;height:46px;border-radius:16px;background:var(--lila-suave);color:var(--morado-osc);display:grid;place-items:center;flex:none;position:relative;transition:background .15s,color .15s}
+.btn-mic svg{width:22px;height:22px}
+.btn-mic.escuchando{background:var(--grad-fuerte);color:#fff;box-shadow:0 0 0 0 rgba(232,85,159,.55);animation:latido 1.3s infinite}
+@keyframes latido{0%{box-shadow:0 0 0 0 rgba(232,85,159,.55)}70%{box-shadow:0 0 0 12px rgba(232,85,159,0)}100%{box-shadow:0 0 0 0 rgba(232,85,159,0)}}
+.escuchando-txt{font-size:12.5px;font-weight:700;color:#b03a78;margin:0 0 6px 4px;display:none}
+.escuchando-txt.on{display:block}
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--texto);color:#fff;padding:10px 16px;border-radius:14px;font-size:14px;z-index:40;max-width:90vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
 .btn-foto.con-fotos{background:var(--grad-fuerte);color:#fff;box-shadow:0 6px 16px rgba(232,85,159,.35)}
 button:not(:disabled):active{transform:scale(.96)}
 .btn-foto svg,.btn-enviar svg{width:22px;height:22px}
@@ -177,10 +185,12 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
       <button id="mTodo" role="tab">Solución completa</button>
     </div>
     <div class="previas" id="previas"></div>
+    <div class="escuchando-txt" id="escTxt">● Te escucho… toca el micrófono para terminar</div>
     <div class="fila">
       <button class="btn-foto" id="bFoto" aria-label="Enviar foto de un ejercicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
       <input type="file" id="archivo" accept="image/*" multiple hidden>
-      <textarea id="texto" rows="1" placeholder="Escribe tu duda…"></textarea>
+      <textarea id="texto" rows="1" placeholder="Escribe o dicta tu duda…"></textarea>
+      <button class="btn-mic" id="bMic" aria-label="Dictar con voz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
       <button class="btn-enviar" id="bEnviar" aria-label="Enviar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
     </div>
   </footer>
@@ -205,6 +215,7 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
   </form>
 </div>
 
+<div class="toast" id="toast"></div>
 <div class="visor" id="visor"><img alt="Foto del ejercicio"></div>
 
 <script>
@@ -487,11 +498,39 @@ $('#fAcceso').addEventListener('submit', async e => {
   } catch { $('#errAcceso').textContent = 'No me pude conectar. Revisa tu internet.'; fin(); }
 });
 
+/* ===================== Dictado por voz (gratis, del propio navegador) ===================== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micEl = $('#bMic');
+let rec = null, baseVoz = '';
+function aviso(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(aviso.t); aviso.t = setTimeout(() => el.classList.remove('on'), 3500); }
+function pararVoz() { if (rec) { try { rec.stop(); } catch {} } }
+if (!SR) micEl.style.display = 'none';
+micEl.onclick = () => {
+  if (rec) return pararVoz();
+  rec = new SR();
+  rec.lang = 'es-PE'; rec.interimResults = true; rec.continuous = true;
+  baseVoz = textoEl.value.trim() ? textoEl.value.replace(/\s*$/, ' ') : '';
+  rec.onresult = e => {
+    let t = '';
+    for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+    textoEl.value = baseVoz + t.replace(/^\s+/, '');
+    autoAltura(); actualizarBoton();
+  };
+  rec.onerror = e => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') aviso('Permite el uso del micrófono para esta página y vuelve a intentarlo.');
+    else if (e.error === 'no-speech') aviso('No te escuché. Toca el micrófono y habla cerca del celular.');
+    else if (e.error !== 'aborted') aviso('El dictado falló. Intenta otra vez.');
+  };
+  rec.onend = () => { rec = null; micEl.classList.remove('escuchando'); $('#escTxt').classList.remove('on'); textoEl.focus(); };
+  try { rec.start(); micEl.classList.add('escuchando'); $('#escTxt').classList.add('on'); }
+  catch { rec = null; aviso('No pude activar el micrófono.'); }
+};
+
 /* ===================== Eventos ===================== */
 function autoAltura() { textoEl.style.height = 'auto'; textoEl.style.height = Math.min(textoEl.scrollHeight, 140) + 'px'; textoEl.style.overflowY = textoEl.scrollHeight > 140 ? 'auto' : 'hidden'; }
 textoEl.addEventListener('input', () => { autoAltura(); actualizarBoton(); });
 textoEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); if (!enviarEl.disabled) enviar(); } });
-enviarEl.onclick = () => enviar();
+enviarEl.onclick = () => { pararVoz(); enviar(); };
 $('#bFoto').onclick = () => $('#archivo').click();
 $('#archivo').onchange = async e => {
   for (const f of [...e.target.files].slice(0, MAX_FOTOS - fotos.length)) {
