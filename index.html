@@ -118,6 +118,14 @@ footer{padding:8px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));bac
 .btn-enviar:disabled{background:var(--grad);opacity:.4;box-shadow:none;cursor:default}
 @keyframes listo{0%{transform:scale(.88)}70%{transform:scale(1.06)}100%{transform:scale(1)}}
 .soltando footer{outline:3px dashed var(--rosa);outline-offset:-6px;background:var(--rosa-suave)}
+.menu-foto{position:fixed;left:12px;bottom:84px;z-index:12;background:#fff;border:1px solid var(--borde);border-radius:20px;box-shadow:0 12px 36px rgba(59,39,71,.18);padding:6px;width:min(300px,calc(100vw - 24px));display:none}
+.menu-foto.on{display:block;animation:sube .16s ease-out}
+@keyframes sube{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.menu-foto button{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:8px;width:100%;text-align:left;padding:10px 10px;border-radius:14px}
+.menu-foto button:hover,.menu-foto button:active{background:var(--rosa-suave)}
+.menu-foto span{grid-row:1/3;font-size:22px;align-self:center;text-align:center}
+.menu-foto b{font-size:15px;font-weight:800}
+.menu-foto small{font-size:12.5px;color:var(--texto2)}
 .btn-mic{width:46px;height:46px;border-radius:16px;background:var(--lila-suave);color:var(--morado-osc);display:grid;place-items:center;flex:none;position:relative;transition:background .15s,color .15s}
 .btn-mic svg{width:22px;height:22px}
 .btn-mic.escuchando{background:var(--grad-fuerte);color:#fff;box-shadow:0 0 0 0 rgba(232,85,159,.55);animation:latido 1.3s infinite}
@@ -188,9 +196,10 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
     <div class="previas" id="previas"></div>
     <div class="escuchando-txt" id="escTxt">● Te escucho… toca el micrófono para terminar</div>
     <div class="fila">
-      <button class="btn-foto" id="bFoto" aria-label="Enviar foto de un ejercicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+      <button class="btn-foto" id="bFoto" aria-label="Agregar imagen: pegar, galería o cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
       <input type="file" id="archivo" accept="image/*" multiple hidden>
-      <textarea id="texto" rows="1" placeholder="Escribe o dicta tu duda…"></textarea>
+      <input type="file" id="camara" accept="image/*" capture="environment" hidden>
+      <textarea id="texto" rows="1" placeholder="Escribe tu duda…"></textarea>
       <button class="btn-mic" id="bMic" aria-label="Dictar con voz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></button>
       <button class="btn-enviar" id="bEnviar" aria-label="Enviar" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
     </div>
@@ -217,6 +226,11 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="menu-foto" id="menuFoto" role="menu" aria-label="Agregar imagen">
+  <button role="menuitem" data-op="pegar"><span>📋</span><b>Pegar captura</b><small>La última captura o imagen que copiaste</small></button>
+  <button role="menuitem" data-op="galeria"><span>🖼️</span><b>Elegir de la galería</b><small>Fotos y capturas guardadas</small></button>
+  <button role="menuitem" data-op="camara"><span>📷</span><b>Tomar foto</b><small>Abre la cámara</small></button>
+</div>
 <div class="visor" id="visor"><img alt="Foto del ejercicio"></div>
 
 <script>
@@ -544,7 +558,33 @@ function autoAltura() { textoEl.style.height = 'auto'; textoEl.style.height = Ma
 textoEl.addEventListener('input', () => { autoAltura(); actualizarBoton(); });
 textoEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); if (!enviarEl.disabled) enviar(); } });
 enviarEl.onclick = () => { pararVoz(); enviar(); };
-$('#bFoto').onclick = () => $('#archivo').click();
+const menuFoto = $('#menuFoto');
+const cerrarMenuFoto = () => menuFoto.classList.remove('on');
+$('#bFoto').onclick = e => { e.stopPropagation(); menuFoto.classList.toggle('on'); };
+document.addEventListener('click', e => { if (!e.target.closest('#menuFoto')) cerrarMenuFoto(); });
+async function pegarDelPortapapeles() {
+  if (!navigator.clipboard || !navigator.clipboard.read) { aviso('Este navegador no deja leer el portapapeles. Usa "Elegir de la galería".'); return; }
+  try {
+    const items = await navigator.clipboard.read();
+    const files = [];
+    for (const it of items) {
+      const tipo = it.types.find(t => t.startsWith('image/'));
+      if (tipo) { const blob = await it.getType(tipo); files.push(new File([blob], 'captura', { type: tipo })); }
+    }
+    if (files.length && await agregarFotos(files)) aviso('Captura pegada 📋');
+    else aviso('No hay ninguna imagen copiada. Toma la captura, toca "Copiar" y vuelve a intentar.');
+  } catch (err) {
+    aviso(err && err.name === 'NotAllowedError' ? 'Dale permiso a la página para usar el portapapeles y vuelve a intentar.' : 'No pude leer el portapapeles. Usa "Elegir de la galería".');
+  }
+}
+menuFoto.onclick = e => {
+  const b = e.target.closest('[data-op]'); if (!b) return;
+  cerrarMenuFoto();
+  if (b.dataset.op === 'pegar') pegarDelPortapapeles();
+  else if (b.dataset.op === 'galeria') $('#archivo').click();
+  else $('#camara').click();
+};
+$('#camara').onchange = async e => { await agregarFotos(e.target.files); e.target.value = ''; };
 async function agregarFotos(lista) {
   const imgs = [...lista].filter(f => f && f.type && f.type.startsWith('image/'));
   if (!imgs.length) return false;
