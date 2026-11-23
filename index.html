@@ -117,6 +117,7 @@ footer{padding:8px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));bac
 .btn-enviar:not(:disabled){animation:listo .25s ease-out}
 .btn-enviar:disabled{background:var(--grad);opacity:.4;box-shadow:none;cursor:default}
 @keyframes listo{0%{transform:scale(.88)}70%{transform:scale(1.06)}100%{transform:scale(1)}}
+.soltando footer{outline:3px dashed var(--rosa);outline-offset:-6px;background:var(--rosa-suave)}
 .btn-mic{width:46px;height:46px;border-radius:16px;background:var(--lila-suave);color:var(--morado-osc);display:grid;place-items:center;flex:none;position:relative;transition:background .15s,color .15s}
 .btn-mic svg{width:22px;height:22px}
 .btn-mic.escuchando{background:var(--grad-fuerte);color:#fff;box-shadow:0 0 0 0 rgba(232,85,159,.55);animation:latido 1.3s infinite}
@@ -531,6 +532,7 @@ function escuchar() {
   rec.start();
 }
 if (!SR) micEl.style.display = 'none';
+if (matchMedia('(pointer:fine)').matches) textoEl.placeholder = 'Escribe, dicta o pega una captura (Ctrl + V)…';
 micEl.onclick = () => {
   if (quiereEscuchar) return pararVoz();
   quiereEscuchar = true; marcarMic(true);
@@ -543,12 +545,27 @@ textoEl.addEventListener('input', () => { autoAltura(); actualizarBoton(); });
 textoEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); if (!enviarEl.disabled) enviar(); } });
 enviarEl.onclick = () => { pararVoz(); enviar(); };
 $('#bFoto').onclick = () => $('#archivo').click();
-$('#archivo').onchange = async e => {
-  for (const f of [...e.target.files].slice(0, MAX_FOTOS - fotos.length)) {
-    try { fotos.push(await comprimir(f)); } catch (err) { alert(err.message); }
+async function agregarFotos(lista) {
+  const imgs = [...lista].filter(f => f && f.type && f.type.startsWith('image/'));
+  if (!imgs.length) return false;
+  if (fotos.length >= MAX_FOTOS) { aviso(`Máximo ${MAX_FOTOS} fotos por mensaje.`); return true; }
+  for (const f of imgs.slice(0, MAX_FOTOS - fotos.length)) {
+    try { fotos.push(await comprimir(f)); } catch (err) { aviso(err.message); }
   }
-  e.target.value = ''; pintarPrevias();
-};
+  pintarPrevias(); textoEl.focus();
+  return true;
+}
+$('#archivo').onchange = async e => { await agregarFotos(e.target.files); e.target.value = ''; };
+// Pegar una captura (Ctrl + V en PC, "Pegar" en el celular)
+document.addEventListener('paste', async e => {
+  if ($('#acceso').classList.contains('on')) return;
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile());
+  if (files.some(f => f && f.type.startsWith('image/'))) { e.preventDefault(); if (await agregarFotos(files)) aviso('Captura pegada 📋'); }
+});
+// Arrastrar y soltar imágenes en la PC
+document.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); document.body.classList.add('soltando'); } });
+document.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('soltando'); });
+document.addEventListener('drop', async e => { document.body.classList.remove('soltando'); if (e.dataTransfer.files.length) { e.preventDefault(); await agregarFotos(e.dataTransfer.files); } });
 $('#previas').onclick = e => { const b = e.target.closest('[data-quitar]'); if (b) { fotos.splice(+b.dataset.quitar, 1); pintarPrevias(); } };
 $('#mPaso').onclick = () => { modoCompleto = false; $('#mPaso').classList.add('on'); $('#mTodo').classList.remove('on'); };
 $('#mTodo').onclick = () => { modoCompleto = true; $('#mTodo').classList.add('on'); $('#mPaso').classList.remove('on'); };
