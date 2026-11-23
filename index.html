@@ -501,14 +501,15 @@ $('#fAcceso').addEventListener('submit', async e => {
 /* ===================== Dictado por voz (gratis, del propio navegador) ===================== */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const micEl = $('#bMic');
-let rec = null, baseVoz = '';
+const ANDROID = /Android/i.test(navigator.userAgent);
+let rec = null, baseVoz = '', quiereEscuchar = false;
 function aviso(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(aviso.t); aviso.t = setTimeout(() => el.classList.remove('on'), 3500); }
-function pararVoz() { if (rec) { try { rec.stop(); } catch {} } }
-if (!SR) micEl.style.display = 'none';
-micEl.onclick = () => {
-  if (rec) return pararVoz();
+function marcarMic(on) { micEl.classList.toggle('escuchando', on); $('#escTxt').classList.toggle('on', on); }
+function pararVoz() { quiereEscuchar = false; marcarMic(false); if (rec) { try { rec.stop(); } catch {} } }
+// El navegador corta el dictado solo cuando hay silencio; si ella no lo apagó, se vuelve a encender.
+function escuchar() {
   rec = new SR();
-  rec.lang = 'es-PE'; rec.interimResults = true; rec.continuous = true;
+  rec.lang = 'es-PE'; rec.interimResults = true; rec.continuous = !ANDROID;
   baseVoz = textoEl.value.trim() ? textoEl.value.replace(/\s*$/, ' ') : '';
   rec.onresult = e => {
     let t = '';
@@ -517,13 +518,23 @@ micEl.onclick = () => {
     autoAltura(); actualizarBoton();
   };
   rec.onerror = e => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') aviso('Permite el uso del micrófono para esta página y vuelve a intentarlo.');
-    else if (e.error === 'no-speech') aviso('No te escuché. Toca el micrófono y habla cerca del celular.');
-    else if (e.error !== 'aborted') aviso('El dictado falló. Intenta otra vez.');
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { quiereEscuchar = false; aviso('Permite el uso del micrófono para esta página y vuelve a intentarlo.'); }
+    else if (e.error === 'audio-capture') { quiereEscuchar = false; aviso('No encuentro el micrófono del dispositivo.'); }
+    else if (e.error === 'network') { quiereEscuchar = false; aviso('Este navegador no tiene dictado por voz. En Windows usa Win + H; en el celular, el micrófono del teclado.'); }
+    else if (e.error !== 'no-speech' && e.error !== 'aborted') { quiereEscuchar = false; aviso('El dictado falló (' + e.error + '). En Windows prueba Win + H.'); }
   };
-  rec.onend = () => { rec = null; micEl.classList.remove('escuchando'); $('#escTxt').classList.remove('on'); textoEl.focus(); };
-  try { rec.start(); micEl.classList.add('escuchando'); $('#escTxt').classList.add('on'); }
-  catch { rec = null; aviso('No pude activar el micrófono.'); }
+  rec.onend = () => {
+    rec = null;
+    if (quiereEscuchar) { setTimeout(() => { if (quiereEscuchar && !rec) { try { escuchar(); } catch { pararVoz(); } } }, 150); }
+    else marcarMic(false);
+  };
+  rec.start();
+}
+if (!SR) micEl.style.display = 'none';
+micEl.onclick = () => {
+  if (quiereEscuchar) return pararVoz();
+  quiereEscuchar = true; marcarMic(true);
+  try { escuchar(); } catch { pararVoz(); aviso('No pude activar el micrófono.'); }
 };
 
 /* ===================== Eventos ===================== */
