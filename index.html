@@ -21,6 +21,7 @@
   --morado:#8b5cf6; --morado-osc:#6d3fd6; --texto:#3b2747; --texto2:#7c6889;
   --ok:#4fb68d; --error:#e0607e;
   --grad:linear-gradient(135deg,#f6a5cd 0%,#c4a7f7 100%);
+  --grad-fuerte:linear-gradient(135deg,#e8559f 0%,#8b5cf6 100%);
   --sombra:0 6px 24px rgba(139,92,246,.10);
   --radio:20px;
 }
@@ -108,11 +109,16 @@ footer{padding:8px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));bac
 .previa img{width:64px;height:64px;object-fit:cover;border-radius:14px;border:2px solid var(--lila)}
 .previa button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:var(--texto);color:#fff;font-size:13px;line-height:22px}
 .fila{display:flex;align-items:flex-end;gap:8px}
-.fila textarea{flex:1;resize:none;border:1.5px solid var(--borde);border-radius:20px;padding:11px 15px;font:inherit;font-size:16px;color:var(--texto);background:#fff;max-height:140px;line-height:1.35;outline:none}
+.fila textarea{flex:1;resize:none;border:1.5px solid var(--borde);border-radius:20px;padding:11px 15px;font:inherit;font-size:16px;color:var(--texto);background:#fff;max-height:140px;line-height:1.35;outline:none;overflow-y:hidden;transition:border-color .15s,box-shadow .15s}
+.fila textarea.escrito{border-color:var(--morado)}
 .fila textarea:focus{border-color:var(--lila);box-shadow:0 0 0 4px var(--lila-suave)}
 .btn-foto{width:46px;height:46px;border-radius:16px;background:var(--rosa-suave);color:#b03a78;display:grid;place-items:center;flex:none}
-.btn-enviar{width:46px;height:46px;border-radius:16px;background:var(--grad);color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 4px 14px rgba(196,167,247,.55)}
-.btn-enviar:disabled{opacity:.45;box-shadow:none}
+.btn-enviar{width:46px;height:46px;border-radius:16px;background:var(--grad-fuerte);color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 6px 16px rgba(139,92,246,.45);transition:opacity .18s,box-shadow .18s,transform .12s}
+.btn-enviar:not(:disabled){animation:listo .25s ease-out}
+.btn-enviar:disabled{background:var(--grad);opacity:.4;box-shadow:none;cursor:default}
+@keyframes listo{0%{transform:scale(.88)}70%{transform:scale(1.06)}100%{transform:scale(1)}}
+.btn-foto.con-fotos{background:var(--grad-fuerte);color:#fff;box-shadow:0 6px 16px rgba(232,85,159,.35)}
+button:not(:disabled):active{transform:scale(.96)}
 .btn-foto svg,.btn-enviar svg{width:22px;height:22px}
 
 /* Cajón del historial */
@@ -143,7 +149,7 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
 .caja input{width:100%;border:1.5px solid var(--borde);border-radius:16px;padding:13px 15px;font:inherit;font-size:17px;text-align:center;outline:none;margin-bottom:12px}
 .caja input:focus{border-color:var(--lila);box-shadow:0 0 0 4px var(--lila-suave)}
 .caja .entrar{width:100%;background:var(--grad);color:#fff;border-radius:16px;padding:13px;font-weight:800;font-size:16px;opacity:.45;transition:opacity .2s,filter .2s,box-shadow .2s,transform .1s}
-.caja .entrar.listo{opacity:1;background:linear-gradient(135deg,#e8559f 0%,#8b5cf6 100%);box-shadow:0 6px 18px rgba(154,108,243,.45)}
+.caja .entrar.listo{opacity:1;background:var(--grad-fuerte);box-shadow:0 6px 18px rgba(154,108,243,.45)}
 .caja .entrar.listo:active{transform:scale(.98)}
 .caja .entrar.revisando{opacity:.8}
 .caja .err{color:var(--error);font-size:14px;min-height:20px;margin-top:10px}
@@ -342,7 +348,11 @@ function pintarPrevias() {
   $('#previas').innerHTML = fotos.map((f, i) => `<div class="previa"><img src="${f}" alt="Foto por enviar"><button data-quitar="${i}" aria-label="Quitar foto">✕</button></div>`).join('');
   actualizarBoton();
 }
-function actualizarBoton() { enviarEl.disabled = ocupado || (!textoEl.value.trim() && !fotos.length); }
+function actualizarBoton() {
+  enviarEl.disabled = ocupado || (!textoEl.value.trim() && !fotos.length);
+  textoEl.classList.toggle('escrito', !!textoEl.value.trim());
+  $('#bFoto').classList.toggle('con-fotos', fotos.length > 0);
+}
 
 async function pintarLista() {
   const todos = await DB.todos();
@@ -478,7 +488,7 @@ $('#fAcceso').addEventListener('submit', async e => {
 });
 
 /* ===================== Eventos ===================== */
-function autoAltura() { textoEl.style.height = 'auto'; textoEl.style.height = Math.min(textoEl.scrollHeight, 140) + 'px'; }
+function autoAltura() { textoEl.style.height = 'auto'; textoEl.style.height = Math.min(textoEl.scrollHeight, 140) + 'px'; textoEl.style.overflowY = textoEl.scrollHeight > 140 ? 'auto' : 'hidden'; }
 textoEl.addEventListener('input', () => { autoAltura(); actualizarBoton(); });
 textoEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(pointer:fine)').matches) { e.preventDefault(); if (!enviarEl.disabled) enviar(); } });
 enviarEl.onclick = () => enviar();
