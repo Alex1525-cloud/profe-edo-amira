@@ -142,7 +142,10 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
 .caja p{color:var(--texto2);margin:0 0 18px;line-height:1.5}
 .caja input{width:100%;border:1.5px solid var(--borde);border-radius:16px;padding:13px 15px;font:inherit;font-size:17px;text-align:center;outline:none;margin-bottom:12px}
 .caja input:focus{border-color:var(--lila);box-shadow:0 0 0 4px var(--lila-suave)}
-.caja .entrar{width:100%;background:var(--grad);color:#fff;border-radius:16px;padding:13px;font-weight:800;font-size:16px}
+.caja .entrar{width:100%;background:var(--grad);color:#fff;border-radius:16px;padding:13px;font-weight:800;font-size:16px;opacity:.45;transition:opacity .2s,filter .2s,box-shadow .2s,transform .1s}
+.caja .entrar.listo{opacity:1;background:linear-gradient(135deg,#e8559f 0%,#8b5cf6 100%);box-shadow:0 6px 18px rgba(154,108,243,.45)}
+.caja .entrar.listo:active{transform:scale(.98)}
+.caja .entrar.revisando{opacity:.8}
 .caja .err{color:var(--error);font-size:14px;min-height:20px;margin-top:10px}
 
 /* Visor de foto */
@@ -458,16 +461,20 @@ async function pedirRespuesta() {
 
 /* ===================== Código de acceso ===================== */
 function pedirCodigo(msg) { $('#errAcceso').textContent = msg || ''; $('#acceso').classList.add('on'); setTimeout(() => $('#codigo').focus(), 50); }
+const bEntrar = $('.entrar');
+const marcarEntrar = () => { bEntrar.classList.toggle('listo', $('#codigo').value.trim().length > 0); };
+$('#codigo').addEventListener('input', () => { marcarEntrar(); $('#errAcceso').textContent = ''; });
 $('#fAcceso').addEventListener('submit', async e => {
   e.preventDefault();
   const c = $('#codigo').value.trim(); if (!c) return;
-  $('#errAcceso').textContent = 'Revisando…';
+  $('#errAcceso').textContent = ''; bEntrar.textContent = 'Revisando…'; bEntrar.classList.add('revisando');
+  const fin = () => { bEntrar.textContent = 'Entrar'; bEntrar.classList.remove('revisando'); marcarEntrar(); };
   try {
     const r = await fetch(API.replace(/\/$/, '') + '/verificar', { method: 'POST', headers: { 'X-Codigo': c } });
-    if (r.ok) { ls.set('pe_codigo', c); $('#acceso').classList.remove('on'); $('#codigo').value = ''; return; }
+    if (r.ok) { ls.set('pe_codigo', c); $('#acceso').classList.remove('on'); $('#codigo').value = ''; fin(); return; }
     let m = 'Ese código no es correcto.'; try { m = (await r.json()).error || m; } catch {}
-    $('#errAcceso').textContent = m;
-  } catch { $('#errAcceso').textContent = 'No me pude conectar. Revisa tu internet.'; }
+    $('#errAcceso').textContent = m; fin();
+  } catch { $('#errAcceso').textContent = 'No me pude conectar. Revisa tu internet.'; fin(); }
 });
 
 /* ===================== Eventos ===================== */
