@@ -77,6 +77,31 @@ main{flex:1;overflow-y:auto;padding:16px 14px 8px;scroll-behavior:smooth}
 .chips{display:flex;flex-wrap:wrap;gap:7px;padding:8px 0 4px}
 .chip{background:var(--fondo2);border:1px solid var(--borde);border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:600;color:var(--texto);text-align:left}
 .chip:hover,.chip:active{background:var(--rosa-suave);border-color:var(--rosa)}
+.practicar{background:linear-gradient(135deg,#fde4f1,#efe8fd);border-radius:18px;padding:12px;margin-bottom:6px;text-align:center}
+.practica-btn{width:100%;background:var(--grad-fuerte);color:#fff;border-radius:14px;padding:12px;font-weight:800;font-size:15.5px;box-shadow:0 6px 16px rgba(139,92,246,.3)}
+.practicar small{display:block;margin-top:7px;font-size:12.5px;color:var(--texto2);line-height:1.35}
+.chip-practica{background:#fff;border-color:var(--rosa);color:#b03a78}
+.pdf-msg{display:block;margin:10px 0 -2px auto;font-size:12.5px;font-weight:800;color:var(--morado-osc);background:var(--lila-suave);border-radius:999px;padding:5px 11px}
+.pdf-msg:hover{background:var(--lila)}
+#impresion{display:none}
+@media print{
+  @page{margin:16mm 14mm}
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  .app,aside,.velo,.acceso,.toast,.menu-foto,.visor{display:none!important}
+  #impresion{display:block;color:#2b1d36;font-size:12pt;line-height:1.5}
+  #impresion *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+.imp-cab{display:flex;align-items:center;gap:12px;border-bottom:3px solid #c4a7f7;padding-bottom:10px;margin-bottom:16px}
+.imp-cab .avatar{width:44px;height:44px;border-radius:14px;font-size:22px;box-shadow:none}
+.imp-cab h1{margin:0;font-size:20pt;color:#6d3fd6}
+.imp-cab p{margin:0;color:#7c6889;font-size:10.5pt}
+.imp-preg{background:#fdf0f7;border-left:4px solid #f4a6cf;border-radius:8px;padding:8px 12px;margin:14px 0 8px;break-inside:avoid}
+.imp-preg b{color:#b03a78;font-size:10pt;text-transform:uppercase;letter-spacing:.04em}
+.imp-preg img{max-width:100%;max-height:300px;display:block;margin:6px 0;border-radius:6px}
+.imp-resp{padding:2px 4px 8px;border-bottom:1px dashed #e3d5f8;margin-bottom:6px}
+.imp-resp strong{color:#6d3fd6}
+.imp-resp .katex-display{overflow:visible}
+.imp-pie{margin-top:18px;font-size:9pt;color:#9a88a6;text-align:center}
 .consejos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
 .consejo{background:var(--fondo2);border-radius:14px;padding:10px 11px;font-size:13px;color:var(--texto2);line-height:1.35}
 .consejo b{color:var(--texto);display:block;font-size:13.5px;margin-bottom:2px}
@@ -200,6 +225,7 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
     <button class="icono" id="bHistorial" aria-label="Mis conversaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
     <div class="avatar" aria-hidden="true">y'</div>
     <div class="titulo"><b>Profe EDO</b><small id="subtitulo">Tu profe de Ecuaciones Diferenciales</small></div>
+    <button class="icono" id="bPdf" aria-label="Descargar todo el chat en PDF" title="Descargar chat en PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg></button>
     <button class="icono" id="bNueva" aria-label="Nueva conversación"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
   </header>
 
@@ -243,6 +269,7 @@ aside h2{margin:4px 4px 12px;font-size:18px;font-weight:800}
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="impresion"></div>
 <div class="menu-foto" id="menuFoto" role="menu" aria-label="Agregar imagen">
   <button role="menuitem" data-op="pegar"><span>📋</span><b>Pegar captura</b><small>La última captura o imagen que copiaste</small></button>
   <button role="menuitem" data-op="galeria"><span>🖼️</span><b>Elegir de la galería</b><small>Fotos y capturas guardadas</small></button>
@@ -349,12 +376,17 @@ function bienvenida() {
   const unidades = UNIDADES.map((u, i) => `
     <details class="unidad" ${i === uAct ? 'open' : ''}>
       <summary><span>Unidad ${u.n}: ${u.t}${i === uAct ? '<span class="actual">ahora</span>' : ''}</span></summary>
-      <div class="chips">${u.temas.map(t => `<button class="chip" data-tema="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+      <div class="chips">${u.temas.map(t => `<button class="chip" data-tema="${esc(t)}">${esc(t)}</button>`).join('')}
+        <button class="chip chip-practica" data-practica="Unidad ${u.n}: ${esc(u.t)}">✏️ Practicar esta unidad</button></div>
     </details>`).join('');
   return `<section class="bienvenida">
     <h1>¡Hola, ${NOMBRE}! 💜</h1>
     <p>Pregúntame cualquier tema del curso o mándame la foto de un ejercicio. Lo resolvemos paso a paso y te explico el porqué de cada paso.</p>
     ${enCiclo ? `<div class="semana"><span class="num">Semana ${w}</span><span>En clase: <b>${esc(SEMANAS[w - 1])}</b></span></div>` : ''}
+    <div class="practicar">
+      <button class="practica-btn" data-practica="${enCiclo ? esc(SEMANAS[w - 1]) : ''}">✏️ Proponme un ejercicio${enCiclo ? ' de esta semana' : ''}</button>
+      <small>Te doy el enunciado, lo intentas y te corrijo. Si te trabas, me pides la resolución.</small>
+    </div>
     ${unidades}
     <div class="consejos">
       <div class="consejo"><b>📷 Foto del ejercicio</b>Que se vea derecha y con buena luz.</div>
@@ -369,7 +401,7 @@ function htmlMensaje(m, i) {
     const et = m.ui.completo ? '<span class="etiqueta">Solución completa</span><br>' : '';
     return `<div class="msg yo"><div class="burbuja">${ims ? `<div class="fotos">${ims}</div>` : ''}${et}${m.ui.texto ? esc(m.ui.texto).replace(/\n/g, '<br>') : ''}</div></div>`;
   }
-  return `<div class="msg profe"><div class="avatar mini" aria-hidden="true">y'</div><div class="burbuja" data-i="${i}">${renderizar(m.ui.texto || '')}</div></div>`;
+  return `<div class="msg profe"><div class="avatar mini" aria-hidden="true">y'</div><div class="burbuja" data-i="${i}">${renderizar(m.ui.texto || '')}<button class="pdf-msg" data-pdf="${i}" aria-label="Guardar esta resolución en PDF">📄 PDF</button></div></div>`;
 }
 
 function pintar() {
@@ -379,7 +411,8 @@ function pintar() {
   if (ult && ult.role === 'assistant') h += `<div class="acciones">
       <button class="accion" data-rapido="Ok, ¿cuál es el siguiente paso?">Siguiente paso</button>
       <button class="accion" data-rapido="No entendí ese último paso, ¿me lo explicas de otra forma, más despacio?">No entendí</button>
-      <button class="accion rosa" data-rapido="Muéstrame la solución completa de este ejercicio, ordenada." data-completo="1">Muéstrame todo</button>
+      <button class="accion rosa" data-rapido="Dame la resolución completa de este ejercicio, ordenada paso a paso." data-completo="1">Resolución completa</button>
+      <button class="accion" data-rapido="Proponme otro ejercicio parecido para practicar, un poco más difícil. Solo el enunciado, sin la solución.">✏️ Otro parecido</button>
     </div>`;
   chatEl.innerHTML = h;
   $('#subtitulo').textContent = chat.mensajes.length ? chat.titulo : 'Tu profe de Ecuaciones Diferenciales';
@@ -425,7 +458,7 @@ async function enviar(textoForzado, completoForzado) {
   } else {
     chat.mensajes.push({ role: 'user', content: bloques, ui: { texto, fotos: [...fotos], completo } });
   }
-  if (chat.mensajes.length === 1) chat.titulo = texto ? (texto.length > 42 ? texto.slice(0, 40) + '…' : texto) : 'Ejercicio con foto';
+  if (chat.mensajes.length === 1) chat.titulo = enviar.titulo ? enviar.titulo : texto ? (texto.length > 42 ? texto.slice(0, 40) + '…' : texto) : 'Ejercicio con foto';
   chat.actualizado = Date.now();
   fotos = []; if (textoForzado === undefined) { textoEl.value = ''; autoAltura(); }
   pintarPrevias(); pintar(); DB.guardar(chat);
@@ -570,6 +603,35 @@ micEl.onclick = () => {
   try { escuchar(); } catch { pararVoz(); aviso('No pude activar el micrófono.'); }
 };
 
+/* ===================== Guardar en PDF (con la ventana de imprimir del navegador) ===================== */
+function guardarPdf(desde, hasta, titulo) {
+  const msgs = chat.mensajes.slice(desde, hasta + 1);
+  if (!msgs.some(m => m.role === 'assistant')) { aviso('Todavía no hay resoluciones para guardar.'); return; }
+  const fecha = new Date().toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+  let h = `<div class="imp-cab"><div class="avatar">y'</div><div><h1>${esc(titulo)}</h1><p>Profe EDO · ${NOMBRE} · Ecuaciones Diferenciales · ${fecha}</p></div></div>`;
+  for (const m of msgs) {
+    if (m.role === 'user') {
+      const ims = (m.ui.fotos || []).map(f => `<img src="${f}" alt="">`).join('');
+      h += `<div class="imp-preg"><b>Amira</b>${ims}${m.ui.texto ? `<div>${esc(m.ui.texto).replace(/\n/g, '<br>')}</div>` : ''}</div>`;
+    } else h += `<div class="imp-resp">${renderizar(m.ui.texto || '')}</div>`;
+  }
+  h += `<div class="imp-pie">Hecho con Profe EDO. Revisa siempre los resultados con tu profesor.</div>`;
+  $('#impresion').innerHTML = h;
+  const tituloAntes = document.title;
+  document.title = 'Profe EDO - ' + titulo.replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
+  const volver = () => { document.title = tituloAntes; window.removeEventListener('afterprint', volver); };
+  window.addEventListener('afterprint', volver);
+  aviso('En la ventana que se abre, elige "Guardar como PDF" 📄');
+  setTimeout(() => window.print(), 350);
+}
+// Una resolución: la respuesta del profe con las preguntas de Amira que la originaron
+function pdfDeMensaje(i) {
+  let d = i - 1;
+  while (d > 0 && chat.mensajes[d - 1].role === 'user') d--;
+  guardarPdf(Math.max(0, d), i, chat.titulo);
+}
+$('#bPdf').onclick = () => { if (!chat.mensajes.length) return aviso('Este chat todavía está vacío.'); guardarPdf(0, chat.mensajes.length - 1, chat.titulo); };
+
 /* ===================== Eventos ===================== */
 function autoAltura() { textoEl.style.height = 'auto'; textoEl.style.height = Math.min(textoEl.scrollHeight, 140) + 'px'; textoEl.style.overflowY = textoEl.scrollHeight > 140 ? 'auto' : 'hidden'; }
 textoEl.addEventListener('input', () => { autoAltura(); actualizarBoton(); });
@@ -629,6 +691,10 @@ $('#mTodo').onclick = () => { modoCompleto = true; $('#mTodo').classList.add('on
 chatEl.addEventListener('click', e => {
   const tema = e.target.closest('[data-tema]');
   if (tema) return enviar(`Explícame "${tema.dataset.tema}" desde cero: la idea, cuándo se usa, el método y un ejemplo corto resuelto.`, false);
+  const pr = e.target.closest('[data-practica]');
+  if (pr) { const t = pr.dataset.practica; enviar.titulo = 'Práctica: ' + (t || 'ejercicio'); setTimeout(() => { enviar.titulo = null; }, 0); return enviar(`Proponme un ejercicio de práctica${t ? ` sobre ${t}` : ''}, nivel examen de mi curso. Dame solo el enunciado, sin la solución. Yo lo intento y luego te muestro, o te pido la resolución si me trabo.`, false); }
+  const pdf = e.target.closest('[data-pdf]');
+  if (pdf) return pdfDeMensaje(+pdf.dataset.pdf);
   const r = e.target.closest('[data-rapido]');
   if (r) return enviar(r.dataset.rapido, !!r.dataset.completo);
   const img = e.target.closest('.fotos img');
